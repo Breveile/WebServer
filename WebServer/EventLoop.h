@@ -1,7 +1,9 @@
 // @Author Lin Ya
 // @Email xxbbb@vip.qq.com
 #pragma once
+// C++11 新特性--函数对象
 #include <functional>
+// C++11 智能指针
 #include <memory>
 #include <vector>
 #include "Channel.h"
@@ -32,7 +34,7 @@ class EventLoop {
     poller_->epoll_del(channel);
   }
   void updatePoller(shared_ptr<Channel> channel, int timeout = 0) {
-    poller_->epoll_mod(channel, timeout);
+    poller_->epoll_mod(channel, timeout);// epoll_mod是什么意思？？？
   }
   void addToPoller(shared_ptr<Channel> channel, int timeout = 0) {
     poller_->epoll_add(channel, timeout);
@@ -48,6 +50,7 @@ class EventLoop {
   mutable MutexLock mutex_;
   std::vector<Functor> pendingFunctors_;
   bool callingPendingFunctors_;
+  // pid_t 属于进程号类型
   const pid_t threadId_;
   shared_ptr<Channel> pwakeupChannel_;
 
