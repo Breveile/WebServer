@@ -2,15 +2,18 @@
 // @Email xxbbb@vip.qq.com
 #include "EventLoop.h"
 #include <sys/epoll.h>
+// Linux中用于触发事件通知
 #include <sys/eventfd.h>
 #include <iostream>
 #include "Util.h"
 #include "base/Logging.h"
 
 using namespace std;
-
+// 被__thread修饰的变量，在多线程中不是共享的而是每个线程单独一个
+// 保证了并发模型中的One loop per thread原则，即每个线程只能有一个EventLoop对象
 __thread EventLoop* t_loopInThisThread = 0;
 
+// 创建一个eventfd对象，初始化为0
 int createEventfd() {
   int evtfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
   if (evtfd < 0) {
@@ -20,6 +23,7 @@ int createEventfd() {
   return evtfd;
 }
 
+// 定义EventLoop的构造函数，进行一些初始化工作
 EventLoop::EventLoop()
     : looping_(false),
       poller_(new Epoll()),
@@ -48,6 +52,7 @@ void EventLoop::handleConn() {
   updatePoller(pwakeupChannel_, 0);
 }
 
+// 析构函数，关闭eventfd，并将当前线程中的Eventloop设为空，也是为了保证One loop per thread
 EventLoop::~EventLoop() {
   // wakeupChannel_->disableAll();
   // wakeupChannel_->remove();
@@ -55,14 +60,16 @@ EventLoop::~EventLoop() {
   t_loopInThisThread = NULL;
 }
 
+// 往创建的eventfd里写8个字节的内容
 void EventLoop::wakeup() {
-  uint64_t one = 1;
+  uint64_t one = 1; // long int型，占8个字节
   ssize_t n = writen(wakeupFd_, (char*)(&one), sizeof one);
   if (n != sizeof one) {
     LOG << "EventLoop::wakeup() writes " << n << " bytes instead of 8";
   }
 }
 
+// 从创建的eventfd里读8个字节的内容
 void EventLoop::handleRead() {
   uint64_t one = 1;
   ssize_t n = readn(wakeupFd_, &one, sizeof one);
@@ -70,6 +77,7 @@ void EventLoop::handleRead() {
     LOG << "EventLoop::handleRead() reads " << n << " bytes instead of 8";
   }
   // pwakeupChannel_->setEvents(EPOLLIN | EPOLLET | EPOLLONESHOT);
+  // 将epoll设置为ET模式
   pwakeupChannel_->setEvents(EPOLLIN | EPOLLET);
 }
 
