@@ -24,6 +24,7 @@ Server::Server(EventLoop *loop, int threadNum, int port)
   }
 }
 
+// 主线程启动。(1)先启动线程池-29行，(2)然后利用Epoll的ET模式监听新连接-30-33行，(3)然后把需要处理的连接加到线程池中-34行
 void Server::start() {
   eventLoopThreadPool_->start();
   // acceptChannel_->setEvents(EPOLLIN | EPOLLET | EPOLLONESHOT);
