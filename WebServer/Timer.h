@@ -30,10 +30,11 @@ class TimerNode {
   std::shared_ptr<HttpData> SPHttpData;
 };
 
+// 重写仿函数，用于优先级队列的元素排序
 struct TimerCmp {
   bool operator()(std::shared_ptr<TimerNode> &a,
                   std::shared_ptr<TimerNode> &b) const {
-    return a->getExpTime() > b->getExpTime();
+    return a->getExpTime() > b->getExpTime(); // 重载＞，升序排列
   }
 };
 
