@@ -9,7 +9,7 @@
 #include "HttpData.h"
 #include "Timer.h"
 
-
+// 此函数就是对原始epoll进行封装，以适应现在做的业务逻辑，主要功能还是创建epoll句柄以及一些对epoll的操作（注册fd，监听，修改，删除等等），channel代表了事件
 class Epoll {
  public:
   Epoll();
