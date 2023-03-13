@@ -2,7 +2,7 @@
 // @Email xxbbb@vip.qq.com
 #include "EventLoop.h"
 #include <sys/epoll.h>
-// Linux中用于触发事件通知
+// Linux中用于触发事件通知, 此处eventfd与epoll结合使用
 #include <sys/eventfd.h>
 #include <iostream>
 #include "Util.h"
@@ -32,6 +32,7 @@ EventLoop::EventLoop()
       eventHandling_(false),
       callingPendingFunctors_(false),
       threadId_(CurrentThread::tid()),
+      // 每一个Eventloop实例，都有一个channel（事件），且与eventfd绑定，这样后续可以通过epoll来监听channel上的活跃事件
       pwakeupChannel_(new Channel(this, wakeupFd_)) {
   if (t_loopInThisThread) {
     // LOG << "Another EventLoop " << t_loopInThisThread << " exists in this
@@ -60,7 +61,7 @@ EventLoop::~EventLoop() {
   t_loopInThisThread = NULL;
 }
 
-// 往创建的eventfd里写8个字节的内容
+// 往创建的eventfd里写8个字节的内容，该函数一旦执行，表明创建的eventfd是可读状态，就可以被epoll监听到
 void EventLoop::wakeup() {
   uint64_t one = 1; // long int型，占8个字节
   ssize_t n = writen(wakeupFd_, (char*)(&one), sizeof one);
@@ -81,6 +82,7 @@ void EventLoop::handleRead() {
   pwakeupChannel_->setEvents(EPOLLIN | EPOLLET);
 }
 
+// cb是函数指针，其指向的函数代表了我们定义的除了除了主要IO任务之外的计算任务
 void EventLoop::runInLoop(Functor&& cb) {
   if (isInLoopThread())
     cb();
@@ -88,6 +90,7 @@ void EventLoop::runInLoop(Functor&& cb) {
     queueInLoop(std::move(cb));
 }
 
+// 跨线程调用函数的精髓所在（需要加锁）
 void EventLoop::queueInLoop(Functor&& cb) {
   {
     MutexLockGuard lock(mutex_);
@@ -97,6 +100,7 @@ void EventLoop::queueInLoop(Functor&& cb) {
   if (!isInLoopThread() || callingPendingFunctors_) wakeup();
 }
 
+// Eventloop所在线程启动之后，主要运行在此loop中
 void EventLoop::loop() {
   assert(!looping_);
   assert(isInLoopThread());
@@ -117,6 +121,7 @@ void EventLoop::loop() {
   looping_ = false;
 }
 
+// pending：待办的
 void EventLoop::doPendingFunctors() {
   std::vector<Functor> functors;
   callingPendingFunctors_ = true;
